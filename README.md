@@ -1,4 +1,3 @@
-
 # Machine Learning with Spark
 
 ## Introduction
@@ -160,7 +159,7 @@ The reasoning behind this separation of the fitting and transforming step is bec
 ```python
 from pyspark.ml.regression import RandomForestRegressor
 from pyspark.ml import feature
-from pyspark.ml.feature import StringIndexer, VectorAssembler, OneHotEncoderEstimator
+from pyspark.ml.feature import StringIndexer, VectorAssembler, OneHotEncoder
 ```
 
 Looking at our data, one can see that all the categories are numerical except for day and month. We saw some correlation between the month and area burned in a fire, so we will include that in our model. The day of the week, however, is highly unlikely to have any effect on fire, so we will drop it from the DataFrame.
@@ -171,7 +170,7 @@ fire_df = spark_df.drop('day')
 fire_df.head()
 ```
 
-In order for us to run our model, we need to turn the months variable into a dummy variable. In `ml` this is a 2-step process that first requires turning the categorical variable into a numerical index (`StringIndexer`). Only after the variable is an integer can PySpark create dummy variable columns related to each category (`OneHotEncoderEstimator`). Your key parameters when using these `ml` estimators are: `inputCol` (the column you want to change) and `outputCol` (where you will store the changed column). Here it is in action: 
+In order for us to run our model, we need to turn the months variable into a dummy variable. In `ml` this is a 2-step process that first requires turning the categorical variable into a numerical index (`StringIndexer`). Only after the variable is an integer can PySpark create dummy variable columns related to each category (`OneHotEncoder`). Your key parameters when using these `ml` estimators are: `inputCol` (the column you want to change) and `outputCol` (where you will store the changed column). Here it is in action: 
 
 
 ```python
@@ -204,7 +203,7 @@ model.labels
 new_df.head(4)
 ```
 
-As you can see, we have created a new column called `'month_num'` that represents the month by a number. Now that we have performed this step, we can use Spark's version of `OneHotEncoder()` - `OneHotEncoderEstimator()`. Let's make sure we have an accurate representation of the months.
+As you can see, we have created a new column called `'month_num'` that represents the month by a number. Now that we have performed this step, we can use Spark's version of `OneHotEncoder()`. Let's make sure we have an accurate representation of the months.
 
 
 ```python
@@ -213,15 +212,15 @@ new_df.select('month_num').distinct().collect()
 
 
 ```python
-## fitting and transforming the OneHotEncoderEstimator
-ohe = feature.OneHotEncoderEstimator(inputCols=['month_num'], outputCols=['month_vec'], dropLast=True)
+## fitting and transforming the OneHotEncoder
+ohe = feature.OneHotEncoder(inputCols=['month_num'], outputCols=['month_vec'], dropLast=True)
 one_hot_encoded = ohe.fit(new_df).transform(new_df)
 one_hot_encoded.head()
 ```
 
 Great, we now have a OneHotEncoded sparse vector in the `'month_vec'` column! Because Spark is optimized for big data, sparse vectors are used rather than entirely new columns for dummy variables because it is more space efficient. You can see in this first row of the DataFrame:  
 
-`month_vec=SparseVector(11, {2: 1.0})` this indicates that we have a sparse vector of size 11 (because of the parameter `dropLast = True` in `OneHotEncoderEstimator()`) and this particular data point is the 2nd index of our month labels (march, based off the labels in the `model` StringEstimator transformer).  
+`month_vec=SparseVector(11, {2: 1.0})` this indicates that we have a sparse vector of size 11 (because of the parameter `dropLast = True` in `OneHotEncoder()`) and this particular data point is the 2nd index of our month labels (march, based off the labels in the `model` StringEstimator transformer).  
 
 The final requirement for all machine learning models in PySpark is to put all of the features of your model into one sparse vector. This is once again for efficiency sake. Here, we are doing that with the `VectorAssembler()` estimator.
 
@@ -296,7 +295,7 @@ evaluator.evaluate(predictions,{evaluator.metricName: 'mae'})
 We just performed a whole lot of transformations to our data. Let's take a look at all the estimators we used to create this model:
 
 * `StringIndexer()` 
-* `OneHotEnconderEstimator()` 
+* `OneHotEncoder()` 
 * `VectorAssembler()` 
 * `RandomForestRegressor()` 
 
@@ -318,7 +317,7 @@ from pyspark.ml import Pipeline
 ## instantiating all necessary estimator objects
 
 string_indexer = StringIndexer(inputCol='month', outputCol='month_num', handleInvalid='keep')
-one_hot_encoder = OneHotEncoderEstimator(inputCols=['month_num'], outputCols=['month_vec'], dropLast=True)
+one_hot_encoder = OneHotEncoder(inputCols=['month_num'], outputCols=['month_vec'], dropLast=True)
 vector_assember = VectorAssembler(inputCols=features, outputCol='features')
 random_forest = RandomForestRegressor(featuresCol='features', labelCol='area')
 stages = [string_indexer, one_hot_encoder, vector_assember, random_forest]
@@ -336,8 +335,8 @@ You might have missed a critical step in the random forest regression above; we 
 # creating parameter grid
 
 params = ParamGridBuilder()\
-          .addGrid(random_forest.maxDepth, [5, 10, 15])\ 
-          .addGrid(random_forest.numTrees, [20 ,50, 100])\ 
+          .addGrid(random_forest.maxDepth, [5, 10, 15])\
+          .addGrid(random_forest.numTrees, [20 ,50, 100])\
           .build()
 ```
 

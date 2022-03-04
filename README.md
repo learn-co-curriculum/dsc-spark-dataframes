@@ -1,113 +1,311 @@
-# Machine Learning with Spark
+# Spark DataFrames
 
 ## Introduction
 
-You've now explored how to perform operations on Spark RDDs for simple MapReduce tasks. Luckily, there are far more advanced use cases for Spark, and many of them are found in the `ml` library, which we are going to explore in this lesson.
+You've now explored how to perform operations on Spark RDDs for simple MapReduce tasks. This is useful for contexts where the low-level Unstructured API is most appropriate, but now we're going to move on to using a more intuitive and powerful interface: Spark DataFrames!
 
 
 ## Objectives
 
 You will be able to: 
 
-- Load and manipulate data using Spark DataFrames  
-- Define estimators and transformers in Spark ML 
-- Create a Spark ML pipeline that transforms data and runs over a grid of hyperparameters 
+- Load and manipulate data using Spark SQL DataFrames
+- Describe the similarities and differences between RDDs, Spark SQL DataFrames, and pandas DataFrames
 
+## Spark SQL DataFrames
 
+From the [Spark SQL docs](https://spark.apache.org/docs/latest/sql-programming-guide.html):
 
-## A Tale of Two Libraries
+> Spark SQL is a Spark module for structured data processing. Unlike the basic Spark RDD API, the interfaces provided by Spark SQL provide Spark with more information about the structure of both the data and the computation being performed.
 
-If you look at the PySpark documentation, you'll notice that there are two different libraries for machine learning, [mllib](https://spark.apache.org/docs/latest/api/python/pyspark.mllib.html) and [ml](https://spark.apache.org/docs/latest/api/python/pyspark.ml.html). These libraries are extremely similar to one another, the only difference being that the `mllib` library is built upon the RDDs you just practiced using; whereas, the `ml` library is built on higher level Spark DataFrames, which has methods and attributes similar to pandas. Spark has stated that in the future, it is going to devote more effort to the `ml` library and that `mllib` will become deprecated. It's important to note that these libraries are much younger than pandas and scikit-learn and there are not as many features present in either.
+Spark SQL has both a SQL interface and a DataFrame interface. We will primarily use the DataFrame interface but it's useful to be aware of both.
 
-## Spark DataFrames
+### Understanding SparkSession
 
-In the previous lessons, you were introduced to SparkContext as the primary way to connect with a Spark Application. Here, we will be using SparkSession, which is from the [sql](https://spark.apache.org/docs/latest/api/python/pyspark.sql.html) component of PySpark. The SparkSession acts the same way as SparkContext; it is a bridge between Python and the Spark Application. It's just built on top of the Spark SQL API, a higher-level API than RDDs. In fact, a SparkContext object is spun up around which the SparkSession object is wrapped. Let's go through the process of manipulating some data here. For this example, we're going to be using the [Forest Fire dataset](https://archive.ics.uci.edu/ml/datasets/Forest+Fires) from UCI, which contains data about the area burned by wildfires in the Northeast region of Portugal in relation to numerous other factors.
+In the previous lessons, we were using the Unstructured API and therefore we connected to Spark using a SparkContext. Here, we will be using SparkSession instead ([documentation here](https://spark.apache.org/docs/latest/api/python/pyspark.sql.html)), which is actually wrapped around a SparkContext under the hood. SparkSession is designed for interacting with high-level Spark SQL data structures (e.g. DataFrames) whereas SparkContext is design with interacting with low-level Spark Core data structures (e.g. RDDs).
 
-To begin with, let's create a SparkSession so that we can spin up our spark application. 
+A SparkSession is created using a *builder* pattern ([documentation here](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.html)) and its conventional name is `spark`:
 
 
 ```python
-# importing the necessary libraries
-from pyspark import SparkContext
 from pyspark.sql import SparkSession
-# sc = SparkContext('local[*]')
-# spark = SparkSession(sc)
-```
-
-To create a SparkSession: 
-
-
-```python
 spark = SparkSession.builder.master('local').getOrCreate()
 ```
 
-Now, we'll load the data into a PySpark DataFrame: 
+### Creating a Spark SQL DataFrame with PySpark
+
+Now that we have a SparkSession, we can create a DataFrame using the `createDataFrame` method ([documentation here](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.createDataFrame.html))! One way to do this would just be to hard-code the data using built-in Python types:
 
 
 ```python
-## reading in pyspark df
-spark_df = spark.read.csv('./forestfires.csv', header='true', inferSchema='true')
-
-## observing the datatype of df
-type(spark_df)
+spark_df = spark.createDataFrame([
+    {"color": "red", "number": 4, "count": 1, "valid": True},
+    {"color": "blue", "number": 7, "count": 2, "valid": False},
+    {"color": "green", "number": 1, "count": 3, "valid": True}
+])
+spark_df
 ```
 
-You'll notice that some of the methods are extremely similar or the same as those found within Pandas.
+
+
+
+    DataFrame[color: string, count: bigint, number: bigint, valid: boolean]
+
+
+
+When the notebook displays `spark_df`, it is showing the schema between the square brackets -- in other words, it is displaying the column names and data types. We did not specify explicit data types for the columns, so Spark inferred them for us.
+
+You can view a nice print-out of the schema like this:
 
 
 ```python
-spark_df.head()
+spark_df.printSchema()
 ```
+
+    root
+     |-- color: string (nullable = true)
+     |-- count: long (nullable = true)
+     |-- number: long (nullable = true)
+     |-- valid: boolean (nullable = true)
+    
+
+
+### Basic Features of Spark SQL DataFrames
+
+#### RDD Methods
+
+Many of the familiar RDD methods will work with DataFrames.
+
+For example, `.collect()` to load all of the data:
+
+
+```python
+spark_df.collect()
+```
+
+
+
+
+    [Row(color='red', count=1, number=4, valid=True),
+     Row(color='blue', count=2, number=7, valid=False),
+     Row(color='green', count=3, number=1, valid=True)]
+
+
+
+And `.take(n)` to return `n` rows of data: 
+
+
+```python
+spark_df.take(2)
+```
+
+
+
+
+    [Row(color='red', count=1, number=4, valid=True),
+     Row(color='blue', count=2, number=7, valid=False)]
+
+
+
+#### DataFrame-Specific Methods
+
+In addition to the methods that work on RDDs, there are methods specific to DataFrames.
+
+For example, we can view all of the data in a tabular format using `.show()`:
+
+
+```python
+spark_df.show()
+```
+
+    +-----+-----+------+-----+
+    |color|count|number|valid|
+    +-----+-----+------+-----+
+    |  red|    1|     4| true|
+    | blue|    2|     7|false|
+    |green|    3|     1| true|
+    +-----+-----+------+-----+
+    
+
+
+(We will add a `.show()` to the end of most of the following examples, since it's easier to read that way.)
+
+If we want to select the data from one or more specific columns, we can use `.select()`:
+
+
+```python
+spark_df.select("number").show()
+```
+
+    +------+
+    |number|
+    +------+
+    |     4|
+    |     7|
+    |     1|
+    +------+
+    
+
+
+
+```python
+spark_df.select(["number", "valid"]).show()
+```
+
+    +------+-----+
+    |number|valid|
+    +------+-----+
+    |     4| true|
+    |     7|false|
+    |     1| true|
+    +------+-----+
+    
+
+
+### Familiar Techniques for Pandas Developers
+
+There are also several attributes and methods that work very similarly for Spark SQL DataFrames as they do with pandas DataFrames:
 
 
 ```python
 spark_df.columns
 ```
 
-Selecting multiple columns is similar as well: 
+
+
+
+    ['color', 'count', 'number', 'valid']
+
+
 
 
 ```python
-spark_df[['month','day','rain']]
+spark_df.describe().show()
 ```
 
-But selecting one column is different. If you want to maintain the methods of a spark DataFrame, you should use the `.select()` method. If you want to just select the column, you can use the same method you would use in pandas (this is primarily what you would use if you're attempting to create a boolean mask). 
+    +-------+-----+-----+------+
+    |summary|color|count|number|
+    +-------+-----+-----+------+
+    |  count|    3|    3|     3|
+    |   mean| null|  2.0|   4.0|
+    | stddev| null|  1.0|   3.0|
+    |    min| blue|    1|     1|
+    |    max|  red|    3|     7|
+    +-------+-----+-----+------+
+    
+
+
+## Loading the Forest Fire Dataset
+
+For this example, we're going to be using the [Forest Fire dataset](https://archive.ics.uci.edu/ml/datasets/Forest+Fires) from UCI, which contains data about the area burned by wildfires in the Northeast region of Portugal in relation to numerous other factors.
+ 
+We'll use `spark.read.csv` to load in the dataset: 
 
 
 ```python
-d = spark_df.select('rain')
+fire_df = spark.read.csv("forestfires.csv", header="true", inferSchema="true")
+fire_df.show(5)
 ```
+
+    +---+---+-----+---+----+----+-----+---+----+---+----+----+----+
+    |  X|  Y|month|day|FFMC| DMC|   DC|ISI|temp| RH|wind|rain|area|
+    +---+---+-----+---+----+----+-----+---+----+---+----+----+----+
+    |  7|  5|  mar|fri|86.2|26.2| 94.3|5.1| 8.2| 51| 6.7| 0.0| 0.0|
+    |  7|  4|  oct|tue|90.6|35.4|669.1|6.7|18.0| 33| 0.9| 0.0| 0.0|
+    |  7|  4|  oct|sat|90.6|43.7|686.9|6.7|14.6| 33| 1.3| 0.0| 0.0|
+    |  8|  6|  mar|fri|91.7|33.3| 77.5|9.0| 8.3| 97| 4.0| 0.2| 0.0|
+    |  8|  6|  mar|sun|89.3|51.3|102.2|9.6|11.4| 99| 1.8| 0.0| 0.0|
+    +---+---+-----+---+----+----+-----+---+----+---+----+----+----+
+    only showing top 5 rows
+    
+
+
+### Spark DataFrame Aggregations
+
+Let's investigate to see if there is any relationship between what month it is and the area of fire.
+
+First we'll group by the `month` column, then aggregate based on the mean of the `area` column for that group:
 
 
 ```python
-spark_df['rain']
+fire_df_months = fire_df.groupBy('month').agg({'area': 'mean'})
+fire_df_months
 ```
 
-Let's take a look at all of our data types in this dataframe
 
 
-```python
-spark_df.dtypes
-```
 
-## Aggregations with our DataFrame
-
-Let's investigate to see if there is any correlation between what month it is and the area of fire: 
+    DataFrame[month: string, avg(area): double]
 
 
-```python
-spark_df_months = spark_df.groupBy('month').agg({'area': 'mean'})
-spark_df_months
-```
 
 Notice how the grouped DataFrame is not returned when you call the aggregation method. Remember, this is still Spark! The transformations and actions are kept separate so that it is easier to manage large quantities of data. You can perform the transformation by calling `.collect()`: 
 
 
 ```python
-spark_df_months.collect()
+fire_df_months.collect()
 ```
 
+
+
+
+    [Row(month='jun', avg(area)=5.841176470588234),
+     Row(month='aug', avg(area)=12.489076086956521),
+     Row(month='may', avg(area)=19.24),
+     Row(month='feb', avg(area)=6.275),
+     Row(month='sep', avg(area)=17.942616279069753),
+     Row(month='mar', avg(area)=4.356666666666667),
+     Row(month='oct', avg(area)=6.638),
+     Row(month='jul', avg(area)=14.3696875),
+     Row(month='nov', avg(area)=0.0),
+     Row(month='apr', avg(area)=8.891111111111112),
+     Row(month='dec', avg(area)=13.33),
+     Row(month='jan', avg(area)=0.0)]
+
+
+
+Let's show that as a table instead, and also order by the average area of fire:
+
+
+```python
+fire_df_months.orderBy("avg(area)").show()
+```
+
+    +-----+------------------+
+    |month|         avg(area)|
+    +-----+------------------+
+    |  jan|               0.0|
+    |  nov|               0.0|
+    |  mar| 4.356666666666667|
+    |  jun| 5.841176470588234|
+    |  feb|             6.275|
+    |  oct|             6.638|
+    |  apr| 8.891111111111112|
+    |  aug|12.489076086956521|
+    |  dec|             13.33|
+    |  jul|        14.3696875|
+    |  sep|17.942616279069753|
+    |  may|             19.24|
+    +-----+------------------+
+    
+
+
 As you can see, there seem to be larger area fires during what would be considered the summer months in Portugal. On your own, practice more aggregations and manipulations that you might be able to perform on this dataset. 
+
+
+```python
+
+```
+
+
+```python
+
+```
+
+
+```python
+
+```
 
 ## Boolean Masking 
 
@@ -115,20 +313,38 @@ Boolean masking also works with PySpark DataFrames just like Pandas DataFrames, 
 
 
 ```python
-no_rain = spark_df.filter(spark_df['rain'] == 0.0)
-some_rain = spark_df.filter(spark_df['rain'] > 0.0)
+no_rain = fire_df.filter(fire_df['rain'] == 0.0)
+some_rain = fire_df.filter(fire_df['rain'] > 0.0)
 ```
 
-Now, to perform calculations to find the mean of a column, we'll have to import functions from `pyspark.sql`. As always, to read more about them, check out the [documentation](https://spark.apache.org/docs/latest/api/python/pyspark.sql.html#module-pyspark.sql.functions).
+Now, to perform calculations to find the mean of a column (without aggregating first), we'll have to import functions from `pyspark.sql`. As always, to read more about them, check out the [documentation](https://spark.apache.org/docs/latest/api/python/pyspark.sql.html#module-pyspark.sql.functions).
 
 
 ```python
 from pyspark.sql.functions import mean
 
-print('no rain fire area: ', no_rain.select(mean('area')).show(),'\n')
+print('no rain fire area:')
+no_rain.select(mean('area')).show()
 
-print('some rain fire area: ', some_rain.select(mean('area')).show(),'\n')
+print('some rain fire area:')
+some_rain.select(mean('area')).show()
 ```
+
+    no rain fire area:
+    +------------------+
+    |         avg(area)|
+    +------------------+
+    |13.023693516699408|
+    +------------------+
+    
+    some rain fire area:
+    +---------+
+    |avg(area)|
+    +---------+
+    |  1.62375|
+    +---------+
+    
+
 
 Yes there's definitely something there! Unsurprisingly, rain plays in a big factor in the spread of wildfire.
 
@@ -136,282 +352,431 @@ Let's obtain data from only the summer months in Portugal (June, July, and Augus
 
 
 ```python
-summer_months = spark_df.filter(spark_df['month'].isin(['jun','jul','aug']))
-winter_months = spark_df.filter(spark_df['month'].isin(['dec','jan','feb']))
+summer_months = fire_df.filter(fire_df['month'].isin(['jun','jul','aug']))
+winter_months = fire_df.filter(fire_df['month'].isin(['dec','jan','feb']))
 
-print('summer months fire area', summer_months.select(mean('area')).show())
-print('winter months fire areas', winter_months.select(mean('area')).show())
+print('summer months fire area:')
+summer_months.select(mean('area')).show()
+
+print('winter months fire area')
+winter_months.select(mean('area')).show()
 ```
 
-## Machine Learning
+    summer months fire area:
+    +------------------+
+    |         avg(area)|
+    +------------------+
+    |12.262317596566525|
+    +------------------+
+    
+    winter months fire area
+    +-----------------+
+    |        avg(area)|
+    +-----------------+
+    |7.918387096774193|
+    +-----------------+
+    
 
-Now that we've performed some data manipulation and aggregation, lets get to the really cool stuff, machine learning! PySpark states that they've used scikit-learn as an inspiration for their implementation of a machine learning library. As a result, many of the methods and functionalities look similar, but there are some crucial distinctions. There are three main concepts found within the ML library:
 
-`Transformer`: An algorithm that transforms one PySpark DataFrame into another DataFrame. 
+## Comparison between DataFrames
 
-`Estimator`: An algorithm that can be fit onto a PySpark DataFrame that can then be used as a Transformer. 
+Although Spark SQL DataFrames and pandas DataFrames have some features in common, they are not the same. We'll demonstrate some similarities and differences below.
 
-`Pipeline`: A pipeline very similar to an `sklearn` pipeline that chains together different actions.
-
-The reasoning behind this separation of the fitting and transforming step is because Spark is lazily evaluated, so the 'fitting' of a model does not actually take place until the Transformation action is called. Let's examine what this actually looks like by performing a regression on the Forest Fire dataset. To start off with, we'll import the necessary libraries for our tasks.
+First, we'll create a `pandas_df` with the same data as `spark_df` and compare the two:
 
 
 ```python
-from pyspark.ml.regression import RandomForestRegressor
-from pyspark.ml import feature
-from pyspark.ml.feature import StringIndexer, VectorAssembler, OneHotEncoder
+import pandas as pd
+
+pandas_df = pd.DataFrame([
+    {"color": "red", "number": 4, "count": 1, "valid": True},
+    {"color": "blue", "number": 7, "count": 2, "valid": False},
+    {"color": "green", "number": 1, "count": 3, "valid": True}
+])
 ```
 
-Looking at our data, one can see that all the categories are numerical except for day and month. We saw some correlation between the month and area burned in a fire, so we will include that in our model. The day of the week, however, is highly unlikely to have any effect on fire, so we will drop it from the DataFrame.
+### Displaying Data
 
 
 ```python
-fire_df = spark_df.drop('day')
-fire_df.head()
-```
-
-In order for us to run our model, we need to turn the months variable into a dummy variable. In `ml` this is a 2-step process that first requires turning the categorical variable into a numerical index (`StringIndexer`). Only after the variable is an integer can PySpark create dummy variable columns related to each category (`OneHotEncoder`). Your key parameters when using these `ml` estimators are: `inputCol` (the column you want to change) and `outputCol` (where you will store the changed column). Here it is in action: 
-
-
-```python
-si = StringIndexer(inputCol='month', outputCol='month_num')
-model = si.fit(fire_df)
-new_df = model.transform(fire_df)
-```
-
-Note the small, but critical distinction between `sklearn`'s implementation of a transformer and PySpark's implementation. `sklearn` is more object oriented and Spark is more functional oriented.
-
-
-```python
-## this is an estimator (an untrained transformer)
-type(si)
+pandas_df
 ```
 
 
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>color</th>
+      <th>number</th>
+      <th>count</th>
+      <th>valid</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>red</td>
+      <td>4</td>
+      <td>1</td>
+      <td>True</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>blue</td>
+      <td>7</td>
+      <td>2</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>green</td>
+      <td>1</td>
+      <td>3</td>
+      <td>True</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+
 ```python
-## this is a transformer (a trained transformer)
-type(model)
+spark_df
 ```
 
 
+
+
+    DataFrame[color: string, count: bigint, number: bigint, valid: boolean]
+
+
+
+One difference you'll notice immediately, which has been pointed out a couple times in this lesson already, is that a Spark DataFrame loads lazily but a pandas DataFrame does not. Therefore if we just type the name of the variable we see at least a preview of the pandas data, but no preview of the Spark data.
+
+### Attributes
+
+
 ```python
-model.labels
+pandas_df.dtypes
 ```
 
 
-```python
-new_df.head(4)
-```
-
-As you can see, we have created a new column called `'month_num'` that represents the month by a number. Now that we have performed this step, we can use Spark's version of `OneHotEncoder()`. Let's make sure we have an accurate representation of the months.
 
 
-```python
-new_df.select('month_num').distinct().collect()
-```
+    color     object
+    number     int64
+    count      int64
+    valid       bool
+    dtype: object
 
 
-```python
-## fitting and transforming the OneHotEncoder
-ohe = feature.OneHotEncoder(inputCols=['month_num'], outputCols=['month_vec'], dropLast=True)
-one_hot_encoded = ohe.fit(new_df).transform(new_df)
-one_hot_encoded.head()
-```
-
-Great, we now have a OneHotEncoded sparse vector in the `'month_vec'` column! Because Spark is optimized for big data, sparse vectors are used rather than entirely new columns for dummy variables because it is more space efficient. You can see in this first row of the DataFrame:  
-
-`month_vec=SparseVector(11, {2: 1.0})` this indicates that we have a sparse vector of size 11 (because of the parameter `dropLast = True` in `OneHotEncoder()`) and this particular data point is the 2nd index of our month labels (march, based off the labels in the `model` StringEstimator transformer).  
-
-The final requirement for all machine learning models in PySpark is to put all of the features of your model into one sparse vector. This is once again for efficiency sake. Here, we are doing that with the `VectorAssembler()` estimator.
 
 
 ```python
-features = ['X',
- 'Y',
- 'FFMC',
- 'DMC',
- 'DC',
- 'ISI',
- 'temp',
- 'RH',
- 'wind',
- 'rain',
- 'month_vec']
-
-target = 'area'
-
-vector = VectorAssembler(inputCols=features, outputCol='features')
-vectorized_df = vector.transform(one_hot_encoded)
+spark_df.dtypes
 ```
 
 
-```python
-vectorized_df.head()
-```
-
-Great! We now have our data in a format that seems acceptable for the last step. It's time for us to actually fit our model to data! Let's fit a Random Forest Regression model to our data. Although there are still a bunch of other features in the DataFrame, it doesn't matter for the machine learning model API. All that needs to be specified are the names of the features column and the label column. 
 
 
-```python
-## instantiating and fitting the model
-rf_model = RandomForestRegressor(featuresCol='features', 
-                                 labelCol='area', predictionCol='prediction').fit(vectorized_df)
-```
+    [('color', 'string'),
+     ('count', 'bigint'),
+     ('number', 'bigint'),
+     ('valid', 'boolean')]
 
 
-```python
-rf_model.featureImportances
-```
 
+Sometimes a Spark DataFrame will have an attribute with a familiar name, but it won't work quite the same way. For example, the `dtypes` attribute is present for both, but in pandas it returns a Series and in Spark SQL it returns a list of tuples.
 
-```python
-## generating predictions
-predictions = rf_model.transform(vectorized_df).select('area', 'prediction')
-predictions.head(10)
-```
+The actual data types listed are also different, although they correspond to each other. For example, the `object` data type in pandas corresponds to the `string` data type in Spark.
 
-Now we can evaluate how well the model performed using `RegressionEvaluator`.
+### Methods
+
+As mentioned previously, Spark SQL DataFrames have methods related to their underlying RDD data structures. Pandas DataFrames do not have these methods.
+
+Even when the methods have the same name, they might not behave the same way:
 
 
 ```python
-from pyspark.ml.evaluation import RegressionEvaluator
-evaluator = RegressionEvaluator(predictionCol='prediction', labelCol='area')
+pandas_df.corr()
 ```
 
 
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>number</th>
+      <th>count</th>
+      <th>valid</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>number</th>
+      <td>1.000000</td>
+      <td>-0.5</td>
+      <td>-0.866025</td>
+    </tr>
+    <tr>
+      <th>count</th>
+      <td>-0.500000</td>
+      <td>1.0</td>
+      <td>0.000000</td>
+    </tr>
+    <tr>
+      <th>valid</th>
+      <td>-0.866025</td>
+      <td>0.0</td>
+      <td>1.000000</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+
 ```python
-## evaluating r^2
-evaluator.evaluate(predictions,{evaluator.metricName: 'r2'})
+spark_df.corr("number", "count")
 ```
 
 
-```python
-## evaluating mean absolute error
-evaluator.evaluate(predictions,{evaluator.metricName: 'mae'})
-```
 
-## Putting it all in a Pipeline
 
-We just performed a whole lot of transformations to our data. Let's take a look at all the estimators we used to create this model:
+    -0.5
 
-* `StringIndexer()` 
-* `OneHotEncoder()` 
-* `VectorAssembler()` 
-* `RandomForestRegressor()` 
 
-Once we've fit our model in the Pipeline, we're then going to want to evaluate it to determine how well it performs. We can do this with:
 
-* `RegressionEvaluator()` 
+In the example above, both have a `corr` method that is used for computing correlations between columns, but they work fairly differently.
 
-We can streamline all of these transformations to make it much more efficient by chaining them together in a pipeline. The Pipeline object expects a list of the estimators prior set to the parameter `stages`.
+* The pandas method does not require any arguments and returns an entire DataFrame showing the correlations between all numeric variables (including `valid`, which contains booleans). 
+* The Spark SQL method requires that you specify two column names and returns a single floating point number indicating the correlation between those two columns.
+
+Watch out for distinctions like this! And don't hesitate to read through the [Spark SQL documentation](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql.html#spark-sql) when you're trying out a new method.
+
+### Selecting Columns and Boolean Masking
+
+In pandas, you can select the data in a single column and it will be viewable as a Series:
 
 
 ```python
-# importing relevant libraries
-from pyspark.ml.tuning import ParamGridBuilder, TrainValidationSplit, CrossValidator
-from pyspark.ml import Pipeline
+pandas_df["color"]
 ```
 
 
-```python
-## instantiating all necessary estimator objects
 
-string_indexer = StringIndexer(inputCol='month', outputCol='month_num', handleInvalid='keep')
-one_hot_encoder = OneHotEncoder(inputCols=['month_num'], outputCols=['month_vec'], dropLast=True)
-vector_assember = VectorAssembler(inputCols=features, outputCol='features')
-random_forest = RandomForestRegressor(featuresCol='features', labelCol='area')
-stages = [string_indexer, one_hot_encoder, vector_assember, random_forest]
 
-# instantiating the pipeline with all them estimator objects
-pipeline = Pipeline(stages=stages)
-```
+    0      red
+    1     blue
+    2    green
+    Name: color, dtype: object
 
-### Cross-validation 
 
-You might have missed a critical step in the random forest regression above; we did not cross validate or perform a train/test split! Now we're going to fix that by performing cross-validation and also testing out multiple different combinations of parameters in PySpark's `GridSearch()` equivalent. To begin with, we will create a parameter grid that contains the different parameters we want to use in our model.
+
+We can apply a method to that Series to get back a Series of booleans:
 
 
 ```python
-# creating parameter grid
-
-params = ParamGridBuilder()\
-          .addGrid(random_forest.maxDepth, [5, 10, 15])\
-          .addGrid(random_forest.numTrees, [20 ,50, 100])\
-          .build()
-```
-
-Let's take a look at the params variable we just built.
-
-
-```python
-print('total combinations of parameters: ', len(params))
-
-params[0]
-```
-
-Now it's time to combine all the steps we've created to work in a single line of code with the `CrossValidator()` estimator.
-
-
-```python
-## instantiating the evaluator by which we will measure our model's performance
-reg_evaluator = RegressionEvaluator(predictionCol='prediction', labelCol='area', metricName = 'mae')
-
-## instantiating crossvalidator estimator
-cv = CrossValidator(estimator=pipeline, estimatorParamMaps=params, evaluator=reg_evaluator, parallelism=4)
+pandas_df["color"].str.contains("r")
 ```
 
 
-```python
-## fitting crossvalidator
-cross_validated_model = cv.fit(fire_df)
-```
-
-Now, let's see how well the model performed! Let's take a look at the average performance for each one of our 9 models. It looks like the optimal performance is an MAE around 23. Note that this is worse than our original model, but that's because our original model had substantial data leakage. We didn't do a train-test split!
 
 
-```python
-cross_validated_model.avgMetrics
-```
+    0     True
+    1    False
+    2     True
+    Name: color, dtype: bool
 
-Now, let's take a look at the optimal parameters of our best performing model. The `cross_validated_model` variable is now saved as the best performing model from the grid search just performed. Let's look to see how well the predictions performed. As you can see, this dataset has a large number of areas of "0.0" burned. Perhaps, it would be better to investigate this problem as a classification task.
+
+
+And then we can also use that Series of booleans to filter the DataFrame using boolean masking:
 
 
 ```python
-predictions = cross_validated_model.transform(spark_df)
-predictions.select('prediction', 'area').show(300)
-```
-
-Now let's go ahead and take a look at the feature importances of our random forest model. In order to do this, we need to unroll our pipeline to access the random forest model. Let's start by first checking out the `.bestModel` attribute of our `cross_validated_model`. 
-
-
-```python
-type(cross_validated_model.bestModel)
-```
-
-`ml` is treating the entire pipeline as the best performing model, so we need to go deeper into the pipeline to access the random forest model within it. Previously, we put the random forest model as the final "stage" in the stages variable list. Let's look at the `.stages` attribute of the `.bestModel`.
-
-
-```python
-cross_validated_model.bestModel.stages
-```
-
-Perfect! There's the RandomForestRegressionModel, represented by the last item in the stages list. Now, we should be able to access all the attributes of the random forest regressor.
-
-
-```python
-optimal_rf_model = cross_validated_model.bestModel.stages[3]
+pandas_df[pandas_df["color"].str.contains("r")]
 ```
 
 
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>color</th>
+      <th>number</th>
+      <th>count</th>
+      <th>valid</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>red</td>
+      <td>4</td>
+      <td>1</td>
+      <td>True</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>green</td>
+      <td>1</td>
+      <td>3</td>
+      <td>True</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+In Spark, the intermediate Column data is not viewable and is only useful for applying the boolean mask.
+
+First we select the data in the `color` column, but if we try to `show()` the result, we get an error:
+
+
 ```python
-optimal_rf_model.featureImportances
+spark_df["color"]
 ```
 
 
+
+
+    Column<'color'>
+
+
+
+
 ```python
-optimal_rf_model.getNumTrees
+try:
+    spark_df["color"].show()
+except Exception as e:
+    print(type(e))
+    print(e)
+```
+
+    <class 'TypeError'>
+    'Column' object is not callable
+
+
+We can chain a `contains` method call onto the Column, but again, if we try to `show()` it, we get an error:
+
+
+```python
+spark_df["color"].contains("r")
+```
+
+
+
+
+    Column<'contains(color, r)'>
+
+
+
+
+```python
+try:
+    spark_df["color"].contains("r").show()
+except Exception as e:
+    print(type(e))
+    print(e)
+```
+
+    <class 'TypeError'>
+    'Column' object is not callable
+
+
+If we want data we can show using this boolean mask, we have to apply the `filter` method:
+
+
+```python
+spark_df.filter(spark_df["color"].contains("r"))
+```
+
+
+
+
+    DataFrame[color: string, count: bigint, number: bigint, valid: boolean]
+
+
+
+
+```python
+spark_df.filter(spark_df["color"].contains("r")).show()
+```
+
+    +-----+-----+------+-----+
+    |color|count|number|valid|
+    +-----+-----+------+-----+
+    |  red|    1|     4| true|
+    |green|    3|     1| true|
+    +-----+-----+------+-----+
+    
+
+
+### Converting Between DataFrame Types
+
+In general, it is not particularly efficient to convert from one DataFrame type to another. Usually the reason that you are using a Spark SQL DataFrame is that you are working with Big Data and require computational optimization, so it wouldn't make much sense to convert it to a pandas DataFrame.
+
+However you can imagine some specific circumstances where you might want to use pandas for debugging, visualization, or some other task that just isn't working in Spark SQL. If you need to do that, check out [this documentation](https://spark.apache.org/docs/latest/api/python/user_guide/sql/arrow_pandas.html).
+
+## Stop the SparkSession
+
+
+```python
+spark.stop()
 ```
 
 ## Summary
 
-In this lesson, you learned about PySpark's DataFrames, machine learning models, and pipelines. With the use of a pipeline, you can train a huge number of models simultaneously, saving you a substantial amount of time and effort. Up next, you will have a chance to build a PySpark machine learning pipeline of your own with a classification problem!
+In this lesson, you explored Spark SQL DataFrames and their methods for displaying and manipulating data. You created DataFrames from base Python data structures as well as from a CSV file, and performed selection, filtering, and aggregation tasks along the way. Finally, you learned about the similarities and differences between Spark SQL DataFrames, their underlying RDDs, and pandas DataFrames.

@@ -18,13 +18,13 @@ From the [Spark SQL docs](https://spark.apache.org/docs/latest/sql-programming-g
 
 > Spark SQL is a Spark module for structured data processing. Unlike the basic Spark RDD API, the interfaces provided by Spark SQL provide Spark with more information about the structure of both the data and the computation being performed.
 
-Spark SQL has both a SQL interface and a DataFrame interface. We will primarily use the DataFrame interface but it's useful to be aware of both.
+Spark SQL has both a SQL interface and a DataFrame interface. You will primarily use the DataFrame interface but it's useful to be aware of both.
 
 ### Understanding SparkSession
 
-In the previous lessons, we were using the Unstructured API and therefore we connected to Spark using a SparkContext. Here, we will be using SparkSession instead ([documentation here](https://spark.apache.org/docs/latest/api/python/pyspark.sql.html)), which is actually wrapped around a SparkContext under the hood. SparkSession is designed for interacting with high-level Spark SQL data structures (e.g. DataFrames) whereas SparkContext is design with interacting with low-level Spark Core data structures (e.g. RDDs).
+Here, you will be using SparkSession instead ([documentation here](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.SparkSession.sparkContext.html)), which is actually wrapped around a SparkContext under the hood. SparkSession is designed for interacting with high-level Spark SQL data structures (e.g. DataFrames) whereas SparkContext is design with interacting with low-level Spark Core data structures (e.g. RDDs).
 
-A SparkSession is created using a *builder* pattern ([documentation here](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.html)) and its conventional name is `spark`:
+A SparkSession is created using a *builder* pattern ([documentation here](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.SparkSession.html)) and its conventional name is `spark`:
 
 
 ```python
@@ -34,7 +34,7 @@ spark = SparkSession.builder.master('local').getOrCreate()
 
 ### Creating a Spark SQL DataFrame with PySpark
 
-Now that we have a SparkSession, we can create a DataFrame using the `createDataFrame` method ([documentation here](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.createDataFrame.html))! One way to do this would just be to hard-code the data using built-in Python types:
+Now that you have a SparkSession, you can create a DataFrame using the `createDataFrame` method ([documentation here](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.SparkSession.createDataFrame.html))! One way to do this would just be to hard-code the data using built-in Python types:
 
 
 ```python
@@ -53,7 +53,7 @@ spark_df
 
 
 
-When the notebook displays `spark_df`, it is showing the schema between the square brackets -- in other words, it is displaying the column names and data types. We did not specify explicit data types for the columns, so Spark inferred them for us.
+When the notebook displays `spark_df`, it is showing the schema between the square brackets -- in other words, it is displaying the column names and data types. You did not specify explicit data types for the columns, so Spark inferred them for us.
 
 You can view a nice print-out of the schema like this:
 
@@ -111,7 +111,7 @@ spark_df.take(2)
 
 In addition to the methods that work on RDDs, there are methods specific to DataFrames.
 
-For example, we can view all of the data in a tabular format using `.show()`:
+For example, you can view all of the data in a tabular format using `.show()`:
 
 
 ```python
@@ -128,9 +128,9 @@ spark_df.show()
     
 
 
-(We will add a `.show()` to the end of most of the following examples, since it's easier to read that way.)
+(You will add a `.show()` to the end of most of the following examples, since it's easier to read that way.)
 
-If we want to select the data from one or more specific columns, we can use `.select()`:
+If you want to select the data from one or more specific columns, you can use `.select()`:
 
 
 ```python
@@ -199,7 +199,7 @@ spark_df.describe().show()
 
 For this example, we're going to be using the [Forest Fire dataset](https://archive.ics.uci.edu/ml/datasets/Forest+Fires) from UCI, which contains data about the area burned by wildfires in the Northeast region of Portugal in relation to numerous other factors.
  
-We'll use `spark.read.csv` to load in the dataset: 
+You will use `spark.read.csv` to load in the dataset: 
 
 
 ```python
@@ -224,7 +224,7 @@ fire_df.show(5)
 
 Let's investigate to see if there is any relationship between what month it is and the area of fire.
 
-First we'll group by the `month` column, then aggregate based on the mean of the `area` column for that group:
+First you will group by the `month` column, then aggregate based on the mean of the `area` column for that group:
 
 
 ```python
@@ -317,7 +317,7 @@ no_rain = fire_df.filter(fire_df['rain'] == 0.0)
 some_rain = fire_df.filter(fire_df['rain'] > 0.0)
 ```
 
-Now, to perform calculations to find the mean of a column (without aggregating first), we'll have to import functions from `pyspark.sql`. As always, to read more about them, check out the [documentation](https://spark.apache.org/docs/latest/api/python/pyspark.sql.html#module-pyspark.sql.functions).
+Now, to perform calculations to find the mean of a column (without aggregating first), you will have to import functions from `pyspark.sql`. As always, to read more about them, check out the [documentation](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/functions.html).
 
 
 ```python
@@ -348,7 +348,7 @@ some_rain.select(mean('area')).show()
 
 Yes there's definitely something there! Unsurprisingly, rain plays in a big factor in the spread of wildfire.
 
-Let's obtain data from only the summer months in Portugal (June, July, and August). We can also do the same for the winter months in Portugal (December, January, February).
+Let's obtain data from only the summer months in Portugal (June, July, and August). You can also do the same for the winter months in Portugal (December, January, February).
 
 
 ```python
@@ -380,9 +380,9 @@ winter_months.select(mean('area')).show()
 
 ## Comparison between DataFrames
 
-Although Spark SQL DataFrames and pandas DataFrames have some features in common, they are not the same. We'll demonstrate some similarities and differences below.
+Although Spark SQL DataFrames and pandas DataFrames have some features in common, they are not the same. You will demonstrate some similarities and differences below.
 
-First, we'll create a `pandas_df` with the same data as `spark_df` and compare the two:
+First, you will create a `pandas_df` with the same data as `spark_df` and compare the two:
 
 
 ```python
@@ -469,7 +469,7 @@ spark_df
 
 
 
-One difference you'll notice immediately, which has been pointed out a couple times in this lesson already, is that a Spark DataFrame loads lazily but a pandas DataFrame does not. Therefore if we just type the name of the variable we see at least a preview of the pandas data, but no preview of the Spark data.
+One difference you'll notice immediately, which has been pointed out a couple times in this lesson already, is that a Spark DataFrame loads lazily but a pandas DataFrame does not. Therefore if you just type the name of the variable you see at least a preview of the pandas data, but no preview of the Spark data.
 
 ### Attributes
 
@@ -587,7 +587,7 @@ In the example above, both have a `corr` method that is used for computing corre
 * The pandas method does not require any arguments and returns an entire DataFrame showing the correlations between all numeric variables (including `valid`, which contains booleans). 
 * The Spark SQL method requires that you specify two column names and returns a single floating point number indicating the correlation between those two columns.
 
-Watch out for distinctions like this! And don't hesitate to read through the [Spark SQL documentation](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql.html#spark-sql) when you're trying out a new method.
+Watch out for distinctions like this! And don't hesitate to read through the [Spark SQL documentation](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/index.html) when you're trying out a new method.
 
 ### Selecting Columns and Boolean Masking
 
@@ -608,7 +608,7 @@ pandas_df["color"]
 
 
 
-We can apply a method to that Series to get back a Series of booleans:
+You can apply a method to that Series to get back a Series of booleans:
 
 
 ```python
@@ -625,7 +625,7 @@ pandas_df["color"].str.contains("r")
 
 
 
-And then we can also use that Series of booleans to filter the DataFrame using boolean masking:
+And then you can also use that Series of booleans to filter the DataFrame using boolean masking:
 
 
 ```python
@@ -682,7 +682,7 @@ pandas_df[pandas_df["color"].str.contains("r")]
 
 In Spark, the intermediate Column data is not viewable and is only useful for applying the boolean mask.
 
-First we select the data in the `color` column, but if we try to `show()` the result, we get an error:
+First you select the data in the `color` column, but if you try to `show()` the result, you get an error:
 
 
 ```python
@@ -709,7 +709,7 @@ except Exception as e:
     'Column' object is not callable
 
 
-We can chain a `contains` method call onto the Column, but again, if we try to `show()` it, we get an error:
+You can chain a `contains` method call onto the Column, but again, if you try to `show()` it, you get an error:
 
 
 ```python
@@ -736,7 +736,7 @@ except Exception as e:
     'Column' object is not callable
 
 
-If we want data we can show using this boolean mask, we have to apply the `filter` method:
+If you want data you can show using this boolean mask, you have to apply the `filter` method:
 
 
 ```python

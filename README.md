@@ -516,7 +516,7 @@ Even when the methods have the same name, they might not behave the same way:
 
 
 ```python
-pandas_df.corr()
+pandas_df.corr(numeric_only = True)
 ```
 
 
